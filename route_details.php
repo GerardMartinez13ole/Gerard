@@ -6,6 +6,62 @@ require_once __DIR__ . '/classes/Sql.php';
 $config = require __DIR__ . '/config.php';
 $sql = new Sql($config);
 
+// AFEGIT: manejador de reserva (POST)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'reserve') {
+    // Comprovar usuari
+    if (empty($_SESSION['user'])) {
+        $_SESSION['flash'] = 'Cal iniciar sessió per fer una reserva.';
+        header('Location: route_details.php?id=' . urlencode($_POST['route_id'] ?? $id));
+        exit;
+    }
+    $user_email = strtolower(trim($_SESSION['user']['correu'] ?? ''));
+    $route_id = isset($_POST['route_id']) ? (int)$_POST['route_id'] : 0;
+
+    // Recarregar dades ruta per a validacions
+    $routeCheck = $sql->fetch("SELECT id, user_email, seats FROM rutes WHERE id = ?", [$route_id]);
+    if (empty($routeCheck)) {
+        $_SESSION['flash'] = 'Ruta no trobada.';
+        header('Location: rutes_disponibles.php');
+        exit;
+    }
+
+    // No pot reservar el mateix conductor
+    if (strtolower($routeCheck['user_email'] ?? '') === $user_email) {
+        $_SESSION['flash'] = 'No pots reservar la teva pròpia ruta.';
+        header('Location: route_details.php?id=' . $route_id);
+        exit;
+    }
+
+    // Comprovar si ja té reserva
+    $existing = $sql->fetch("SELECT id FROM reservas WHERE route_id = ? AND LOWER(user_email) = ?", [$route_id, $user_email]);
+    if (!empty($existing)) {
+        $_SESSION['flash'] = 'Ja tens una reserva per aquesta ruta.';
+        header('Location: route_details.php?id=' . $route_id);
+        exit;
+    }
+
+    // Comprovar places disponibles
+    if ((int)($routeCheck['seats'] ?? 0) <= 0) {
+        $_SESSION['flash'] = 'No hi ha places disponibles per aquesta ruta.';
+        header('Location: route_details.php?id=' . $route_id);
+        exit;
+    }
+
+    // Inserir reserva i decrementar places (amb transacció si el wrapper ho permet)
+    try {
+        // Intentar executar; si el teu Sql té un mètode diferent, canvia execute per l'adequat
+        $sql->execute("INSERT INTO reservas (route_id, user_email, created_at) VALUES (?, ?, NOW())", [$route_id, $user_email]);
+        $sql->execute("UPDATE rutes SET seats = seats - 1 WHERE id = ? AND seats > 0", [$route_id]);
+
+        $_SESSION['flash'] = 'Reserva realitzada correctament.';
+    } catch (Exception $e) {
+        $_SESSION['flash'] = 'Error en realitzar la reserva. Torna-ho a intentar.';
+    }
+
+    header('Location: route_details.php?id=' . $route_id);
+    exit;
+}
+
 // obtenir id
 $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 if ($id <= 0) {
@@ -196,6 +252,22 @@ if (!empty($_SESSION['user'])) {
                     <a href="<?= htmlspecialchars($mapUrl) ?>" class="btn-action btn-details">
                         <i class="bi bi-map"></i>Veure al mapa
                     </a>
+
+                    <!-- AFEGIT: formulari de reserva per a usuaris (només si no són conductor i no tenen reserva i hi ha places) -->
+                    <?php if (!empty($_SESSION['user']) && strtolower($_SESSION['user']['correu']) !== strtolower($ruta['driver_email'] ?? '')): 
+                        // comprovar si l'usuari ja té reserva (ja calculat abans a $hasReservation)
+                        if (!$hasReservation): 
+                            $seatsAvailable = (int)($ruta['seats'] ?? 0) > 0;
+                    ?>
+                        <form method="post" class="d-inline-block ms-2" onsubmit="return confirm('Confirmes la reserva d\\'aquesta plaça?');">
+                            <input type="hidden" name="action" value="reserve">
+                            <input type="hidden" name="route_id" value="<?= (int)$ruta['id'] ?>">
+                            <button type="submit" class="btn btn-success btn-action" <?= $seatsAvailable ? '' : 'disabled' ?>>
+                                <i class="bi bi-check2-circle"></i>
+                                <?= $seatsAvailable ? 'Reservar plaça' : 'Sense places' ?>
+                            </button>
+                        </form>
+                    <?php endif; endif; ?>
                 </div>
 
     <!-- abans del final del <main> afegir missatge flash si existeix -->
@@ -264,12 +336,12 @@ if (!empty($_SESSION['user'])) {
                     <i class="bi bi-arrow-left me-2"></i>Tornar a rutes disponibles
                 </a>
             </div>
+        
 
-        <?php endif; ?>
-    </main>
 
-    <?php require_once __DIR__ . '/includes/footer.php'; ?>
 
+</main> 
+    <?php require_once __DIR__ . '/includes/footer.php'; ?>           <?php endif; ?>
     <style>
     .rating-input {
         display: flex;
