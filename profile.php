@@ -41,6 +41,41 @@ $valoracions = $sql->select(
      ORDER BY v.created_at DESC",
     [$user_email]
 );
+
+// --- NOUS: processar POST per actualitzar perfil ---
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $newName = trim($_POST['nom'] ?? '');
+    $newPass = $_POST['password'] ?? '';
+    $errorsUpdate = [];
+
+    if ($newName === '') {
+        $errorsUpdate[] = 'El nom no pot estar buit.';
+    }
+
+    if (empty($errorsUpdate)) {
+        try {
+            if ($newPass !== '') {
+                $hash = password_hash($newPass, PASSWORD_DEFAULT);
+                $sql->execute("UPDATE usuaris SET nom = ?, contrasenya = ? WHERE LOWER(correu) = ?", [$newName, $hash, $user_email]);
+            } else {
+                $sql->execute("UPDATE usuaris SET nom = ? WHERE LOWER(correu) = ?", [$newName, $user_email]);
+            }
+            // Actualitzar dades a la sessió per evitar inconsistencia
+            $_SESSION['user']['nom'] = $newName;
+            $_SESSION['flash'] = 'Dades del perfil actualitzades correctament.';
+            header('Location: profile.php');
+            exit;
+        } catch (Exception $e) {
+            $errorsUpdate[] = 'Error actualitzant el perfil.';
+        }
+    }
+    // exposar errors com a flash mínimament
+    if (!empty($errorsUpdate)) {
+        $_SESSION['flash'] = implode(' ', $errorsUpdate);
+        header('Location: profile.php');
+        exit;
+    }
+}
 ?>
 <!doctype html>
 <html lang="ca">
@@ -123,7 +158,7 @@ $valoracions = $sql->select(
                         <div class="card">
                             <div class="card-body">
                                 <h5 class="mb-3">Editar les meves dades</h5>
-                                <form method="post" action="update_profile.php">
+                                <form method="post" action="profile.php">
                                     <div class="mb-3">
                                         <label class="form-label">Nom</label>
                                         <input type="text" class="form-control" name="nom" value="<?= htmlspecialchars($user['nom']) ?>" required>
@@ -245,12 +280,7 @@ $valoracions = $sql->select(
                 </div>
             </div>
         </div>
-
-        <div class="mt-5 text-center">
-            <a href="menu.php" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-2"></i>Tornar al menú</a>
-        </div>
     </main>
-
     <?php require_once __DIR__ . '/includes/footer.php'; ?>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

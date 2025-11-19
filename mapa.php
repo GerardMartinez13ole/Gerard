@@ -50,6 +50,33 @@ if (empty($rutes)) {
             <div class="col-12 col-lg-3">
                 <div class="card mb-3">
                     <div class="card-body">
+                        <!-- Afegeixo formulari de filtres -->
+                        <form id="map-filter-form" class="mb-3">
+                            <h6 class="mb-2"><i class="bi bi-funnel me-2"></i>Filtrar rutes</h6>
+                            <div class="mb-2">
+                                <label class="form-label small">Origen</label>
+                                <input type="text" name="filter_origin" class="form-control form-control-sm" placeholder="Ex: Barcelona">
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small">Destí</label>
+                                <input type="text" name="filter_destination" class="form-control form-control-sm" placeholder="Ex: Girona">
+                            </div>
+                            <div class="row g-2 mb-2">
+                                <div class="col-6">
+                                    <label class="form-label small">Data mínima</label>
+                                    <input type="date" name="filter_date" class="form-control form-control-sm">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small">Places mínimes</label>
+                                    <input type="number" name="filter_seats" min="0" max="8" class="form-control form-control-sm" placeholder="Qualsevol">
+                                </div>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search me-1"></i>Filtrar</button>
+                                <button type="reset" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-clockwise me-1"></i>Netejar</button>
+                            </div>
+                        </form>
+
                         <h5 class="card-title mb-2">Rutes (<span id="route-count"><?= count($rutes) ?></span>)</h5>
                         <div id="route-list" class="list-group list-group-flush">
                             <!-- la llista s'omplirà amb JS -->
@@ -124,7 +151,7 @@ if (empty($rutes)) {
     let currentDestMarker = null; // marcador per al destí
 
     // nou: comptador per a punts duplicats (key = lat_lon amb precisió)
-    const duplicateCounts = {};
+    let duplicateCounts = {};
 
     // Cache de geocodificació en localStorage
     const geocodeCacheKey = 'geo_cache_v1';
@@ -378,7 +405,117 @@ if (empty($rutes)) {
         return div.innerHTML;
     }
 
-    // Carrega marcadors
+    // --- NOVES FUNCIONS: filtratge i recarrega de marcadors ---
+    function getFiltersFromForm() {
+        const form = document.getElementById('map-filter-form');
+        if (!form) return { origin: '', destination: '', date: '', seats: '' };
+        return {
+            origin: (form.querySelector('input[name="filter_origin"]').value || '').trim(),
+            destination: (form.querySelector('input[name="filter_destination"]').value || '').trim(),
+            date: (form.querySelector('input[name="filter_date"]').value || '').trim(),
+            seats: (form.querySelector('input[name="filter_seats"]').value || '').trim()
+        };
+    }
+
+    function applyFilters(filters) {
+        // filters: {origin, destination, date, seats}
+        return routes.filter(r => {
+            if (filters.origin) {
+                if (!r.origin || r.origin.toLowerCase().indexOf(filters.origin.toLowerCase()) === -1) return false;
+            }
+            if (filters.destination) {
+                if (!r.destination || r.destination.toLowerCase().indexOf(filters.destination.toLowerCase()) === -1) return false;
+            }
+            if (filters.date) {
+                // comparar només la part de la data
+                try {
+                    const routeDate = new Date(r.date_time);
+                    const minDate = new Date(filters.date + 'T00:00:00');
+                    if (isNaN(routeDate) || routeDate < minDate) return false;
+                } catch(e) { return false; }
+            }
+            if (filters.seats) {
+                const minSeats = parseInt(filters.seats, 10) || 0;
+                if ((parseInt(r.seats, 10) || 0) < minSeats) return false;
+            }
+            return true;
+        });
+    }
+
+    function clearMapState() {
+        // eliminar marcadors existents
+        markers.forEach(m => markersLayer.removeLayer(m));
+        markers.length = 0;
+        // eliminar línies i marcadors de ruta
+        if (currentRouteLine) { routeLinesLayer.removeLayer(currentRouteLine); currentRouteLine = null; }
+        if (currentDestMarker) { routeLinesLayer.removeLayer(currentDestMarker); currentDestMarker = null; }
+        // buidar llista lateral i duplicats
+        const list = document.getElementById('route-list');
+        if (list) list.innerHTML = '';
+        duplicateCounts = {};
+    }
+
+    async function loadMarkersForFilters(filters) {
+        clearMapState();
+        const filtered = applyFilters(filters);
+        document.getElementById('route-count').innerText = filtered.length;
+        if (filtered.length === 0) {
+            document.getElementById('route-list').innerHTML = '<div class="text-muted small p-2">Cap ruta disponible</div>';
+            return;
+        }
+        for (let i = 0; i < filtered.length; i++) {
+            await addRouteMarker(filtered[i], i);
+            // petit delay per evitar bloqueig per geocoding massiu
+            await new Promise(r => setTimeout(r, 200));
+        }
+        debugLog('Markers loaded for filters, count:', filtered.length);
+    }
+
+    // inicialitzar valors del formulari a partir de la querystring (si hi ha)
+    (function initFiltersFromQuery() {
+        const form = document.getElementById('map-filter-form');
+        if (!form) return;
+        const origin = urlParams.get('filter_origin') || '';
+        const destination = urlParams.get('filter_destination') || '';
+        const date = urlParams.get('filter_date') || '';
+        const seats = urlParams.get('filter_seats') || '';
+
+        form.querySelector('input[name="filter_origin"]').value = origin;
+        form.querySelector('input[name="filter_destination"]').value = destination;
+        form.querySelector('input[name="filter_date"]').value = date;
+        form.querySelector('input[name="filter_seats"]').value = seats;
+
+        // submit del formulari actualitza la vista sense recarregar
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const f = getFiltersFromForm();
+            // actualitzar querystring (replaceState)
+            const newParams = new URLSearchParams(window.location.search);
+            if (f.origin) newParams.set('filter_origin', f.origin); else newParams.delete('filter_origin');
+            if (f.destination) newParams.set('filter_destination', f.destination); else newParams.delete('filter_destination');
+            if (f.date) newParams.set('filter_date', f.date); else newParams.delete('filter_date');
+            if (f.seats) newParams.set('filter_seats', f.seats); else newParams.delete('filter_seats');
+            const newUrl = window.location.pathname + '?' + newParams.toString();
+            history.replaceState(null, '', newUrl);
+
+            await loadMarkersForFilters(f);
+        });
+
+        // reset: esborra params i recarrega tots
+        form.querySelector('button[type="reset"]').addEventListener('click', async function() {
+            setTimeout(async () => {
+                // eliminar params rellevants
+                const newParams = new URLSearchParams(window.location.search);
+                newParams.delete('filter_origin'); newParams.delete('filter_destination');
+                newParams.delete('filter_date'); newParams.delete('filter_seats');
+                const newUrl = window.location.pathname + (newParams.toString() ? ('?' + newParams.toString()) : '');
+                history.replaceState(null, '', newUrl);
+                await loadMarkersForFilters({ origin:'', destination:'', date:'', seats:'' });
+            }, 10);
+        });
+    })();
+
+    // Carrega marcadors (inicial) -> aplica els filtres si venen per querystring
     (async function() {
         if (routes.length === 0) {
             debugLog('No routes to load');
@@ -386,12 +523,14 @@ if (empty($rutes)) {
             return;
         }
 
-        for (let i = 0; i < routes.length; i++) {
-            await addRouteMarker(routes[i], i);
-            await new Promise(r => setTimeout(r, 300));
-        }
+        const initialFilters = {
+            origin: urlParams.get('filter_origin') || '',
+            destination: urlParams.get('filter_destination') || '',
+            date: urlParams.get('filter_date') || '',
+            seats: urlParams.get('filter_seats') || ''
+        };
 
-        debugLog('All markers added:', markers.length);
+        await loadMarkersForFilters(initialFilters);
 
         // botó fit-all
         document.getElementById('fit-all').addEventListener('click', () => {

@@ -29,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 $rutes = $sql->select("SELECT * FROM rutes WHERE user_email = ? AND available = 1 ORDER BY date_time DESC", [$user_email]);
 ?>
 <!doctype html>
-<html lang="es">
+<html lang="ca">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -63,21 +63,17 @@ $rutes = $sql->select("SELECT * FROM rutes WHERE user_email = ? AND available = 
         <?php else: ?>
             <div class="rutes-list">
                 <?php foreach ($rutes as $rute): ?>
-                    <div class="rute-card">
-                        <div class="rute-card-body">
+                    <div class="rute-card mb-4">
+                        <div class="rute-card-body p-3 border rounded bg-white">
                             <!-- RUTE HEADER -->
-                            <div class="rute-header">
-                                <div class="rute-route">
-                                    <i class="bi bi-geo-alt-fill rute-route-icon"></i>
-                                    <div class="rute-route-info">
-                                        <h5>
-                                            <?= htmlspecialchars($rute['origin']) ?>
-                                            <span class="route-arrow mx-2">→</span>
-                                            <?= htmlspecialchars($rute['destination']) ?>
-                                        </h5>
-                                    </div>
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <div>
+                                    <h5 class="mb-1">
+                                        <i class="bi bi-geo-alt-fill me-2"></i>
+                                        <?= htmlspecialchars($rute['origin']) ?> <span class="mx-2">→</span> <?= htmlspecialchars($rute['destination']) ?>
+                                    </h5>
                                 </div>
-                                <div class="rute-status">
+                                <div class="text-end">
                                     <span class="status-badge <?= $rute['available'] ? 'active' : 'inactive' ?>">
                                         <i class="bi <?= $rute['available'] ? 'bi-check-circle' : 'bi-x-circle' ?> me-1"></i>
                                         <?= $rute['available'] ? 'Activa' : 'Inactiva' ?>
@@ -86,72 +82,36 @@ $rutes = $sql->select("SELECT * FROM rutes WHERE user_email = ? AND available = 
                             </div>
 
                             <!-- RUTE DETAILS -->
-                            <div class="rute-details">
-                                <div class="rute-detail">
-                                    <div class="rute-detail-icon">
-                                        <i class="bi bi-calendar-event"></i>
-                                    </div>
-                                    <div class="rute-detail-info">
-                                        <div class="rute-detail-label">Data i hora</div>
-                                        <div class="rute-detail-value"><?= date('d/m/Y H:i', strtotime($rute['date_time'])) ?></div>
-                                    </div>
-                                </div>
-
-                                <div class="rute-detail">
-                                    <div class="rute-detail-icon">
-                                        <i class="bi bi-people"></i>
-                                    </div>
-                                    <div class="rute-detail-info">
-                                        <div class="rute-detail-label">Plazas</div>
-                                        <div class="rute-detail-value"><?= (int)$rute['seats'] ?> places</div>
-                                    </div>
-                                </div>
-
-                                <div class="rute-detail">
-                                    <div class="rute-detail-icon">
-                                        <i class="bi bi-coin"></i>
-                                    </div>
-                                    <div class="rute-detail-info">
-                                        <div class="rute-detail-label">Cost en tokens</div>
-                                        <div class="rute-detail-value"><?= (int)($rute['token_cost'] ?? 0) ?> tokens</div>
-                                    </div>
-                                </div>
-
-                                <div class="rute-detail">
-                                    <div class="rute-detail-icon">
-                                        <i class="bi bi-clock-history"></i>
-                                    </div>
-                                    <div class="rute-detail-info">
-                                        <div class="rute-detail-label">Publicada</div>
-                                        <div class="rute-detail-value"><?= date('d/m/Y', strtotime($rute['created_at'])) ?></div>
-                                    </div>
-                                </div>
+                            <div class="d-flex flex-wrap mb-3 gap-3 text-muted small">
+                                <div><i class="bi bi-calendar-event me-1"></i><?= date('d/m/Y H:i', strtotime($rute['date_time'])) ?></div>
+                                <div><i class="bi bi-people me-1"></i><?= (int)$rute['seats'] ?> places</div>
+                                <div><i class="bi bi-coin me-1"></i><?= (int)($rute['token_cost'] ?? 0) ?> tokens</div>
+                                <div><i class="bi bi-clock-history me-1"></i>Publicada: <?= date('d/m/Y', strtotime($rute['created_at'])) ?></div>
                             </div>
 
                             <!-- RUTE DESCRIPTION -->
                             <?php if (!empty($rute['description'])): ?>
-                                <div class="rute-description show">
-                                    <strong>Descripción:</strong><br>
-                                    <?= htmlspecialchars($rute['description']) ?>
+                                <div class="rute-description mb-3 text-muted">
+                                    <strong>Descripció:</strong> <?= nl2br(htmlspecialchars($rute['description'])) ?>
                                 </div>
                             <?php endif; ?>
 
                             <!-- RUTE ACTIONS -->
-                            <div class="rute-actions">
-                                <a href="editar_ruta.php?id=<?= $rute['id'] ?>" class="btn-rute-action btn-edit">
-                                    <i class="bi bi-pencil"></i>Editar
+                            <div class="d-flex gap-2">
+                                <a href="editar_ruta.php?id=<?= $rute['id'] ?>" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-pencil me-1"></i>Editar
                                 </a>
 
-                                <form method="post" action="mis_rutes.php" style="display:contents;" onsubmit="return confirm('¿Seguro que deseas eliminar esta ruta?');">
+                                <form method="post" action="mis_rutes.php" style="display:inline;" onsubmit="return confirm('Segur que vols eliminar aquesta ruta?');">
                                     <input type="hidden" name="id" value="<?= $rute['id'] ?>">
                                     <input type="hidden" name="action" value="delete">
-                                    <button type="submit" class="btn-rute-action btn-delete">
-                                        <i class="bi bi-trash"></i>Eliminar
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <i class="bi bi-trash me-1"></i>Eliminar
                                     </button>
                                 </form>
 
-                                <a href="route_details.php?id=<?= $rute['id'] ?>" class="btn-rute-action btn-details">
-                                    <i class="bi bi-eye"></i>Detalles
+                                <a href="route_details.php?id=<?= $rute['id'] ?>" class="btn btn-sm btn-outline-secondary ms-auto">
+                                    <i class="bi bi-eye me-1"></i>Detalls
                                 </a>
                             </div>
                         </div>
@@ -160,16 +120,15 @@ $rutes = $sql->select("SELECT * FROM rutes WHERE user_email = ? AND available = 
             </div>
 
             <div class="mt-4 text-center">
-                <a href="afegir_ruta.php" class="add-route-btn">
-                    <i class="bi bi-plus-circle"></i>
-                    Afegir nova ruta
+                <a href="afegir_ruta.php" class="btn btn-primary">
+                    <i class="bi bi-plus-circle me-1"></i>Afegir nova ruta
                 </a>
             </div>
         <?php endif; ?>
 
         <div class="mt-4 text-center">
             <a href="menu.php" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left me-2"></i>Volver al menú
+                <i class="bi bi-arrow-left me-2"></i>Tornar al menú
             </a>
         </div>
     </main>

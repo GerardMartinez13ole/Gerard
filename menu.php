@@ -18,7 +18,6 @@ $user = $_SESSION['user'];
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
     <link rel="stylesheet" href="css/style_global.css">
-    <link rel="stylesheet" href="css/style_rutesdisponibles.css">
 </head>
 
 <body>
@@ -69,7 +68,7 @@ $user = $_SESSION['user'];
                         <i class="bi bi-chat-dots text-warning" style="font-size: 2rem;"></i>
                         <h5 class="card-title mt-3">Converses</h5>
                         <p class="card-text text-muted">Xateja amb altres usuaris</p>
-                        <a href="chat_list.php" class="btn btn-primary mt-3">Converses</a>
+                        <a href="converses.php" class="btn btn-primary mt-3">Converses</a>
                     </div>
                 </div>
             </div>
@@ -91,7 +90,7 @@ $user = $_SESSION['user'];
                         <i class="bi bi-ticket-perforated text-success" style="font-size: 2rem;"></i>
                         <h5 class="card-title mt-3">Les Meves Reserves</h5>
                         <p class="card-text text-muted">Gestiona i cancel·la les teves reserves</p>
-                        <a href="my_reservations.php" class="btn btn-primary mt-3">Veure Reserves</a>
+                        <a href="les_meves_reserves.php" class="btn btn-primary mt-3">Veure Reserves</a>
                     </div>
                 </div>
             </div>
@@ -102,7 +101,7 @@ $user = $_SESSION['user'];
                         <i class="bi bi-person-circle text-info" style="font-size: 2rem;"></i>
                         <h5 class="card-title mt-3">El meu perfil</h5>
                         <p class="card-text text-muted">Gestiona les teves dades i historial</p>
-                        <a href="profile.php" class="btn btn-primary mt-3">Veure perfil</a>
+                        <a href="perfil.php" class="btn btn-primary mt-3">Veure perfil</a>>
                     </div>
                 </div>
             </div>
@@ -124,7 +123,7 @@ $user = $_SESSION['user'];
                         <i class="bi bi-box-arrow-right text-secondary" style="font-size: 2rem;"></i>
                         <h5 class="card-title mt-3">Tancar Sessió</h5>
                         <p class="card-text text-muted">Tanca la teva sessió actual</p>
-                        <a href="logout.php" class="btn btn-outline-secondary mt-3">Sortir</a>
+                        <a href="tancar_sessio.php" class="btn btn-outline-secondary mt-3">Sortir</a>
                     </div>
                 </div>
             </div>

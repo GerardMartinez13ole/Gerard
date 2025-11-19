@@ -3,6 +3,25 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 $user = $_SESSION['user'] ?? null;
+
+// Si hi ha usuari a sessió, actualitzar el saldo de tokens des de la base de dades
+if (!empty($user) && !empty($user['correu'])) {
+    try {
+        require_once __DIR__ . '/../config.php';
+        require_once __DIR__ . '/../classes/Sql.php';
+        $config = require __DIR__ . '/../config.php';
+        $sql = new Sql($config);
+
+        $email = strtolower(trim($user['correu']));
+        $row = $sql->fetch("SELECT tokens FROM usuaris WHERE LOWER(correu) = ?", [$email]);
+        if ($row !== false && isset($row['tokens'])) {
+            $_SESSION['user']['tokens'] = (int)$row['tokens'];
+            $user['tokens'] = $_SESSION['user']['tokens'];
+        }
+    } catch (Exception $e) {
+        // no fer res: mantindrem el valor existent en sessió si hi ha error
+    }
+}
 ?>
 <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm site-navbar">
     <div class="container-fluid">
@@ -28,9 +47,10 @@ $user = $_SESSION['user'] ?? null;
             <div class="d-flex align-items-center">
                 <?php if ($user): ?>
                     <span class="me-3 text-muted small">Tokens: <strong><?= htmlspecialchars((int)($user['tokens'] ?? 0)) ?></strong></span>
-                    <a class="btn btn-sm btn-outline-success me-3" href="purchase_tokens.php">Comprar tokens</a>
+                    <a class="btn btn-sm btn-outline-success me-3" href="comprar_tokens.php">Comprar tokens</a>
                     <span class="me-3 text-muted">Hola, <strong><?= htmlspecialchars($user['nom'] ?? $user['correu']) ?></strong></span>
-                    <a class="btn btn-outline-secondary btn-sm" href="logout.php">Tancar Sessió</a>
+                    <a class="btn btn-profile btn-sm me-2" href="profile.php">Vore el teu perfil</a>
+                    <a class="btn btn-outline-secondary btn-sm" href="tancar_sessio.php">Tancar Sessió</a>
                 <?php else: ?>
                     <a class="btn btn-outline-primary btn-sm me-2" href="login.php">Iniciar Sessió</a>
                     <a class="btn btn-primary btn-sm" href="register.php">Crear Compte</a>

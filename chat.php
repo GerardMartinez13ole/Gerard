@@ -219,7 +219,7 @@ if (!empty($participant)) {
 
                     <div class="mt-4 text-center">
                         <a href="route_details.php?id=<?= $route_id ?>" class="btn btn-outline-secondary">
-                            <i class="bi bi-arrow-left me-2"></i>Volver a la ruta
+                            <i class="bi bi-arrow-left me-2"></i>Tornar a la ruta
                         </a>
                     </div>
                 <?php endif; ?>
