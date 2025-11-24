@@ -1,33 +1,3 @@
-<?php
-session_start();
-require_once __DIR__ . '/config.php';
-require_once __DIR__ . '/classes/Sql.php';
-
-if (empty($_SESSION['user'])) {
-    header('Location: login.php');
-    exit;
-}
-
-$config = require __DIR__ . '/config.php';
-$sql = new Sql($config);
-
-$user_email = $_SESSION['user']['correu'] ?? null;
-if (!$user_email) {
-    header('Location: login.php?error=no_user_email');
-    exit;
-}
-
-// Gestionar eliminació (soft delete)
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete' && !empty($_POST['id'])) {
-    $id = (int)$_POST['id'];
-    $sql->execute("UPDATE rutes SET available = 0 WHERE id = ? AND user_email = ?", [$id, $user_email]);
-    header('Location: mis_rutes.php');
-    exit;
-}
-
-// Obtenir rutes de l'usuari (mostrar només les disponibles)
-$rutes = $sql->select("SELECT * FROM rutes WHERE user_email = ? AND available = 1 ORDER BY date_time DESC", [$user_email]);
-?>
 <!doctype html>
 <html lang="ca">
 <head>
@@ -40,7 +10,7 @@ $rutes = $sql->select("SELECT * FROM rutes WHERE user_email = ? AND available = 
     <link rel="stylesheet" href="css/style_mis_rutes_professional.css">
 </head>
 <body class="bg-light">
-    <?php require_once __DIR__ . '/includes/header.php'; ?>
+    <?php require_once 'includes/header.php'; ?>
 
     <main class="container py-5">
         <div class="mb-5">
@@ -55,7 +25,7 @@ $rutes = $sql->select("SELECT * FROM rutes WHERE user_email = ? AND available = 
                 </div>
                 <h3 class="empty-state-title">No tens rutes publicades</h3>
                 <p class="empty-state-text">Comença a compartir viatges creant una nova ruta</p>
-                <a href="afegir_ruta.php" class="add-route-btn">
+                <a href="index.php?action=afegir_ruta" class="add-route-btn">
                     <i class="bi bi-plus-circle"></i>
                     Afegir nova ruta
                 </a>
@@ -65,7 +35,6 @@ $rutes = $sql->select("SELECT * FROM rutes WHERE user_email = ? AND available = 
                 <?php foreach ($rutes as $rute): ?>
                     <div class="rute-card mb-4">
                         <div class="rute-card-body p-3 border rounded bg-white">
-                            <!-- RUTE HEADER -->
                             <div class="d-flex justify-content-between align-items-start mb-3">
                                 <div>
                                     <h5 class="mb-1">
@@ -81,7 +50,6 @@ $rutes = $sql->select("SELECT * FROM rutes WHERE user_email = ? AND available = 
                                 </div>
                             </div>
 
-                            <!-- RUTE DETAILS -->
                             <div class="d-flex flex-wrap mb-3 gap-3 text-muted small">
                                 <div><i class="bi bi-calendar-event me-1"></i><?= date('d/m/Y H:i', strtotime($rute['date_time'])) ?></div>
                                 <div><i class="bi bi-people me-1"></i><?= (int)$rute['seats'] ?> places</div>
@@ -89,28 +57,25 @@ $rutes = $sql->select("SELECT * FROM rutes WHERE user_email = ? AND available = 
                                 <div><i class="bi bi-clock-history me-1"></i>Publicada: <?= date('d/m/Y', strtotime($rute['created_at'])) ?></div>
                             </div>
 
-                            <!-- RUTE DESCRIPTION -->
                             <?php if (!empty($rute['description'])): ?>
                                 <div class="rute-description mb-3 text-muted">
                                     <strong>Descripció:</strong> <?= nl2br(htmlspecialchars($rute['description'])) ?>
                                 </div>
                             <?php endif; ?>
 
-                            <!-- RUTE ACTIONS -->
                             <div class="d-flex gap-2">
-                                <a href="editar_ruta.php?id=<?= $rute['id'] ?>" class="btn btn-sm btn-outline-primary">
+                                <a href="index.php?action=editar_ruta&id=<?= $rute['id'] ?>" class="btn btn-sm btn-outline-primary">
                                     <i class="bi bi-pencil me-1"></i>Editar
                                 </a>
 
-                                <form method="post" action="mis_rutes.php" style="display:inline;" onsubmit="return confirm('Segur que vols eliminar aquesta ruta?');">
+                                <form method="post" action="index.php?action=mis_rutes" style="display:inline;" onsubmit="return confirm('Segur que vols eliminar aquesta ruta?');">
                                     <input type="hidden" name="id" value="<?= $rute['id'] ?>">
-                                    <input type="hidden" name="action" value="delete">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    <input type="hidden" name="post_action" value="delete"> <button type="submit" class="btn btn-sm btn-outline-danger">
                                         <i class="bi bi-trash me-1"></i>Eliminar
                                     </button>
                                 </form>
 
-                                <a href="route_details.php?id=<?= $rute['id'] ?>" class="btn btn-sm btn-outline-secondary ms-auto">
+                                <a href="index.php?action=route_details&id=<?= $rute['id'] ?>" class="btn btn-sm btn-outline-secondary ms-auto">
                                     <i class="bi bi-eye me-1"></i>Detalls
                                 </a>
                             </div>
@@ -120,21 +85,20 @@ $rutes = $sql->select("SELECT * FROM rutes WHERE user_email = ? AND available = 
             </div>
 
             <div class="mt-4 text-center">
-                <a href="afegir_ruta.php" class="btn btn-primary">
+                <a href="index.php?action=afegir_ruta" class="btn btn-primary">
                     <i class="bi bi-plus-circle me-1"></i>Afegir nova ruta
                 </a>
             </div>
         <?php endif; ?>
 
         <div class="mt-4 text-center">
-            <a href="menu.php" class="btn btn-outline-secondary">
+            <a href="index.php?action=menu" class="btn btn-outline-secondary">
                 <i class="bi bi-arrow-left me-2"></i>Tornar al menú
             </a>
         </div>
     </main>
 
-    <?php require_once __DIR__ . '/includes/footer.php'; ?>
-
+    <?php require_once 'includes/footer.php'; ?>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

@@ -8,9 +8,9 @@
             <div class="col-md-4 mb-3 mb-md-0">
                 <h6 class="fw-bold">Enllaços Ràpids</h6>
                 <ul class="list-unstyled small">
-                    <li><a href="rutes_disponibles.php" class="text-muted text-decoration-none">Rutes Disponibles</a></li>
-                    <li><a href="afegir_ruta.php" class="text-muted text-decoration-none">Crear Ruta</a></li>
-                    <li><a href="mis_rutes.php" class="text-muted text-decoration-none">Les Meves Rutes</a></li>
+                    <li><a href="index.php?action=rutes_disponibles" class="text-muted text-decoration-none">Rutes Disponibles</a></li>
+                    <li><a href="index.php?action=afegir_ruta" class="text-muted text-decoration-none">Crear Ruta</a></li>
+                    <li><a href="index.php?action=mis_rutes" class="text-muted text-decoration-none">Les Meves Rutes</a></li>
                 </ul>
             </div>
             <div class="col-md-4">

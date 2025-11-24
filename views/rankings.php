@@ -1,24 +1,3 @@
-<?php
-session_start();
-require_once __DIR__ . '/config.php';
-require_once __DIR__ . '/classes/Sql.php';
-
-$config = require __DIR__ . '/config.php';
-$sql = new Sql($config);
-
-// Obtenir ranking de conductors
-$rankings = $sql->select(
-    "SELECT u.correu, u.nom, u.valoracio, 
-            COUNT(v.id) as num_valoracions,
-            (SELECT COUNT(*) FROM rutes WHERE user_email = u.correu) as num_rutes
-     FROM usuaris u
-     LEFT JOIN valoracions v ON LOWER(v.rated_user_email) = LOWER(u.correu)
-     WHERE u.valoracio > 0
-     GROUP BY u.correu, u.nom, u.valoracio
-     ORDER BY u.valoracio DESC, num_valoracions DESC
-     LIMIT 50"
-);
-?>
 <!doctype html>
 <html lang="ca">
 <head>
@@ -30,7 +9,7 @@ $rankings = $sql->select(
     <link rel="stylesheet" href="css/style_global.css">
 </head>
 <body class="bg-light">
-    <?php require_once __DIR__ . '/includes/header.php'; ?>
+    <?php require_once 'includes/header.php'; ?>
 
     <main class="container py-5">
         <div class="mb-5">
@@ -110,7 +89,7 @@ $rankings = $sql->select(
                 <?php endif; ?>
 
                 <div class="mt-4 text-center">
-                    <a href="menu.php" class="btn btn-outline-secondary">
+                    <a href="index.php?action=menu" class="btn btn-outline-secondary">
                         <i class="bi bi-arrow-left me-2"></i>Tornar al menú
                     </a>
                 </div>
@@ -118,8 +97,7 @@ $rankings = $sql->select(
         </div>
     </main>
 
-    <?php require_once __DIR__ . '/includes/footer.php'; ?>
-
+    <?php require_once 'includes/footer.php'; ?>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

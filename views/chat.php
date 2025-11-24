@@ -1,104 +1,3 @@
-<?php
-session_start();
-require_once __DIR__ . '/config.php';
-require_once __DIR__ . '/classes/Sql.php';
-
-if (empty($_SESSION['user'])) {
-    header('Location: login.php');
-    exit;
-}
-
-$config = require __DIR__ . '/config.php';
-$sql = new Sql($config);
-
-// Normalize emails to avoid mismatches (trim + lowercase)
-$me = strtolower(trim($_SESSION['user']['correu'] ?? ''));
-
-// obtenir id
-$route_id = isset($_GET['route_id']) ? (int)$_GET['route_id'] : 0;
-if ($route_id <= 0) {
-    header('Location: rutes_disponibles.php');
-    exit;
-}
-
-// obtenir ruta i conductor
-$route = $sql->fetch("SELECT r.*, u.nom AS driver_name, u.correu AS driver_email FROM rutes r JOIN usuaris u ON r.user_email = u.correu WHERE r.id = ?", [$route_id]);
-if (!$route) {
-    header('Location: rutes_disponibles.php');
-    exit;
-}
-
-// normalitzar correu del driver
-$driver_email = strtolower(trim($route['driver_email'] ?? ''));
-$driver_name = $route['driver_name'] ?? '—';
-
-// participant des de GET (opcional) i normalitzar
-$participant = isset($_GET['participant']) ? strtolower(trim($_GET['participant'])) : null;
-
-// Si l'usuari no és el conductor i no s'ha passat participant, el participant serà sempre el conductor
-if ($me !== $driver_email && !$participant) {
-    $participant = $driver_email;
-}
-
-// Si l'usuari és el conductor i no hi ha participant, mostrar llista de participants disponibles
-$participants = [];
-if ($me === $driver_email && !$participant) {
-    // obtenir participants distincts normalitzats (excloure el conductor)
-    $rows = $sql->select(
-        "SELECT DISTINCT LOWER(email) AS participant FROM (
-            SELECT sender_email AS email FROM messages WHERE route_id = ?
-            UNION
-            SELECT receiver_email AS email FROM messages WHERE route_id = ?
-        ) t WHERE LOWER(email) != ?",
-        [$route_id, $route_id, $driver_email]
-    );
-    foreach ($rows as $r) {
-        if (!empty($r['participant'])) $participants[] = $r['participant'];
-    }
-}
-
-// Proces envio de missatge
-$errors = [];
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['message'])) {
-    $msg = trim($_POST['message']);
-    $receiver = strtolower(trim($_POST['receiver'] ?? ''));
-
-    if ($msg === '') {
-        $errors[] = 'El mensaje no puede estar vacío.';
-    } elseif ($receiver === '' ) {
-        $errors[] = 'Destinatari invàlid.';
-    } else {
-        try {
-            // Inserir correus normalitzats
-            $sql->insert("INSERT INTO messages (route_id, sender_email, receiver_email, message) VALUES (?, ?, ?, ?)", [$route_id, $me, $receiver, $msg]);
-            // redirigir per evitar reenvío del form; si hi ha participant mantenir-lo a la query
-            $qs = "route_id={$route_id}";
-            if (!empty($participant)) $qs .= "&participant=" . urlencode($participant);
-            header("Location: chat.php?{$qs}");
-            exit;
-        } catch (Exception $e) {
-            $errors[] = 'Error al enviar el mensaje.';
-        }
-    }
-}
-
-// Si tenim participant, carregar missatges entre me i participant
-$messages = [];
-if (!empty($participant)) {
-    $other = $participant;
-    $messages = $sql->select(
-        "SELECT * FROM messages 
-         WHERE route_id = ? 
-           AND (
-             (LOWER(sender_email) = ? AND LOWER(receiver_email) = ?)
-             OR
-             (LOWER(sender_email) = ? AND LOWER(receiver_email) = ?)
-           )
-         ORDER BY created_at ASC",
-        [$route_id, $me, $other, $other, $me]
-    );
-}
-?>
 <!doctype html>
 <html lang="es">
 <head>
@@ -111,7 +10,7 @@ if (!empty($participant)) {
     <link rel="stylesheet" href="css/style_chat_professional.css">
 </head>
 <body class="bg-light">
-    <?php require_once __DIR__ . '/includes/header.php'; ?>
+    <?php require_once 'includes/header.php'; ?>
 
     <main class="container py-5">
         <div class="mb-4">
@@ -122,7 +21,6 @@ if (!empty($participant)) {
         <div class="row justify-content-center">
             <div class="col-12 col-lg-8">
                 <?php if ($me === $driver_email && empty($participant)): ?>
-                    <!-- LISTA DE PARTICIPANTES PARA EL CONDUCTOR -->
                     <div class="card">
                         <div class="card-body">
                             <h5 class="mb-4">Conversaciones actives</h5>
@@ -141,7 +39,7 @@ if (!empty($participant)) {
                                                 </div>
                                                 <span><?= htmlspecialchars($p) ?></span>
                                             </div>
-                                            <a href="chat.php?route_id=<?= $route_id ?>&participant=<?= urlencode($p) ?>" 
+                                            <a href="index.php?action=chat&route_id=<?= $route_id ?>&participant=<?= urlencode($p) ?>" 
                                                class="btn btn-sm btn-primary">
                                                 <i class="bi bi-chat-dots me-1"></i>Abrir
                                             </a>
@@ -153,9 +51,7 @@ if (!empty($participant)) {
                     </div>
 
                 <?php else: ?>
-                    <!-- CHAT CONVERSATION -->
                     <div class="chat-container">
-                        <!-- CHAT HEADER -->
                         <div class="chat-header">
                             <div>
                                 <h5><?= htmlspecialchars($route['origin']) ?> → <?= htmlspecialchars($route['destination']) ?></h5>
@@ -172,7 +68,6 @@ if (!empty($participant)) {
                             </div>
                         </div>
 
-                        <!-- CHAT BODY -->
                         <div class="chat-body">
                             <?php if (empty($messages)): ?>
                                 <div class="chat-empty">
@@ -198,9 +93,8 @@ if (!empty($participant)) {
                             <?php endif; ?>
                         </div>
 
-                        <!-- CHAT FOOTER -->
                         <div class="chat-footer">
-                            <form method="post" action="chat.php?route_id=<?= $route_id ?><?php if (!empty($participant)) echo '&participant=' . urlencode($participant); ?>" class="w-100 d-flex gap-2">
+                            <form method="post" action="index.php?action=chat&route_id=<?= $route_id ?><?php if (!empty($participant)) echo '&participant=' . urlencode($participant); ?>" class="w-100 d-flex gap-2">
                                 <input type="hidden" name="receiver" value="<?= htmlspecialchars(!empty($participant) ? $participant : $driver_email) ?>">
                                 <textarea name="message" class="form-control" rows="2" placeholder="Escriu un missatge..." required></textarea>
                                 <button type="submit" class="btn-send">
@@ -218,7 +112,7 @@ if (!empty($participant)) {
                     <?php endif; ?>
 
                     <div class="mt-4 text-center">
-                        <a href="route_details.php?id=<?= $route_id ?>" class="btn btn-outline-secondary">
+                        <a href="index.php?action=route_details&id=<?= $route_id ?>" class="btn btn-outline-secondary">
                             <i class="bi bi-arrow-left me-2"></i>Tornar a la ruta
                         </a>
                     </div>
@@ -227,16 +121,14 @@ if (!empty($participant)) {
         </div>
     </main>
 
-    <?php require_once __DIR__ . '/includes/footer.php'; ?>
+    <?php require_once 'includes/footer.php'; ?>
 
-    <!-- Auto-scroll al final del chat -->
     <script>
         const chatBody = document.querySelector('.chat-body');
         if (chatBody) {
             chatBody.scrollTop = chatBody.scrollHeight;
         }
     </script>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

@@ -1,82 +1,3 @@
-<?php
-session_start();
-require_once __DIR__ . '/config.php';
-require_once __DIR__ . '/classes/Sql.php';
-
-if (empty($_SESSION['user'])) {
-    header('Location: login.php');
-    exit;
-}
-
-$config = require __DIR__ . '/config.php';
-$sql = new Sql($config);
-
-$user_email = strtolower(trim($_SESSION['user']['correu'] ?? ''));
-
-// Obtenir dades de l'usuari
-$user = $sql->fetch("SELECT * FROM usuaris WHERE LOWER(correu) = ?", [$user_email]);
-
-// Obtenir rutes creades
-$rutesCreades = $sql->select(
-    "SELECT id, origin, destination, date_time, seats, available FROM rutes WHERE LOWER(user_email) = ? ORDER BY date_time DESC",
-    [$user_email]
-);
-
-// Obtenir rutes reservades
-$rutesReservades = $sql->select(
-    "SELECT r.id, r.origin, r.destination, r.date_time, r.seats, u.nom as driver
-     FROM reservas res
-     JOIN rutes r ON res.route_id = r.id
-     JOIN usuaris u ON r.user_email = u.correu
-     WHERE LOWER(res.user_email) = ?
-     ORDER BY r.date_time DESC",
-    [$user_email]
-);
-
-// Obtenir valoracions rebudes
-$valoracions = $sql->select(
-    "SELECT v.*, u.nom as rater_name FROM valoracions v
-     JOIN usuaris u ON LOWER(u.correu) = LOWER(v.rater_email)
-     WHERE LOWER(v.rated_user_email) = ?
-     ORDER BY v.created_at DESC",
-    [$user_email]
-);
-
-// --- NOUS: processar POST per actualitzar perfil ---
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $newName = trim($_POST['nom'] ?? '');
-    $newPass = $_POST['password'] ?? '';
-    $errorsUpdate = [];
-
-    if ($newName === '') {
-        $errorsUpdate[] = 'El nom no pot estar buit.';
-    }
-
-    if (empty($errorsUpdate)) {
-        try {
-            if ($newPass !== '') {
-                $hash = password_hash($newPass, PASSWORD_DEFAULT);
-                $sql->execute("UPDATE usuaris SET nom = ?, contrasenya = ? WHERE LOWER(correu) = ?", [$newName, $hash, $user_email]);
-            } else {
-                $sql->execute("UPDATE usuaris SET nom = ? WHERE LOWER(correu) = ?", [$newName, $user_email]);
-            }
-            // Actualitzar dades a la sessió per evitar inconsistencia
-            $_SESSION['user']['nom'] = $newName;
-            $_SESSION['flash'] = 'Dades del perfil actualitzades correctament.';
-            header('Location: profile.php');
-            exit;
-        } catch (Exception $e) {
-            $errorsUpdate[] = 'Error actualitzant el perfil.';
-        }
-    }
-    // exposar errors com a flash mínimament
-    if (!empty($errorsUpdate)) {
-        $_SESSION['flash'] = implode(' ', $errorsUpdate);
-        header('Location: profile.php');
-        exit;
-    }
-}
-?>
 <!doctype html>
 <html lang="ca">
 <head>
@@ -88,12 +9,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link rel="stylesheet" href="css/style_global.css">
 </head>
 <body class="bg-light">
-    <?php require_once __DIR__ . '/includes/header.php'; ?>
+    <?php require_once 'includes/header.php'; ?>
 
     <main class="container py-5">
         <div class="mb-5">
             <h1 class="mb-1"><i class="bi bi-person-circle me-2"></i>El meu perfil</h1>
-            <p class="text-muted">Gestiona els teus dades i historial</p>
+            <p class="text-muted">Gestiona les teves dades i historial</p>
         </div>
 
         <?php if (!empty($_SESSION['flash'])): ?>
@@ -106,7 +27,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <div class="row">
             <div class="col-12 col-lg-3">
-                <!-- AVATAR I DADES BÀSIQUES -->
                 <div class="card mb-4 text-center">
                     <div class="card-body">
                         <div style="width:80px; height:80px; margin:0 auto 1rem; border-radius:50%; background:linear-gradient(135deg,#0d6efd,#0b5ed7); display:flex; align-items:center; justify-content:center; color:white; font-size:2rem; font-weight:700;">
@@ -128,7 +48,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
 
             <div class="col-12 col-lg-9">
-                <!-- TABS -->
                 <ul class="nav nav-tabs mb-4" role="tablist">
                     <li class="nav-item" role="presentation">
                         <button class="nav-link active" id="dades-tab" data-bs-toggle="tab" data-bs-target="#dades" type="button" role="tab">
@@ -153,12 +72,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </ul>
 
                 <div class="tab-content">
-                    <!-- TAB: DADES -->
                     <div class="tab-pane fade show active" id="dades" role="tabpanel">
                         <div class="card">
                             <div class="card-body">
                                 <h5 class="mb-3">Editar les meves dades</h5>
-                                <form method="post" action="profile.php">
+                                <form method="post" action="index.php?action=perfil">
                                     <div class="mb-3">
                                         <label class="form-label">Nom</label>
                                         <input type="text" class="form-control" name="nom" value="<?= htmlspecialchars($user['nom']) ?>" required>
@@ -178,7 +96,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
                     </div>
 
-                    <!-- TAB: RUTES CREADES -->
                     <div class="tab-pane fade" id="rutes" role="tabpanel">
                         <div class="card">
                             <div class="card-body">
@@ -212,12 +129,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
                     </div>
 
-                    <!-- TAB: RESERVES -->
                     <div class="tab-pane fade" id="reserves" role="tabpanel">
                         <div class="card">
                             <div class="card-body">
                                 <?php if (empty($rutesReservades)): ?>
-                                    <p class="text-muted">No has reservat cap ruta ancora.</p>
+                                    <p class="text-muted">No has reservat cap ruta encara.</p>
                                 <?php else: ?>
                                     <div class="table-responsive">
                                         <table class="table table-sm">
@@ -246,7 +162,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
                     </div>
 
-                    <!-- TAB: VALORACIONS -->
                     <div class="tab-pane fade" id="valoracions" role="tabpanel">
                         <div class="card">
                             <div class="card-body">
@@ -280,8 +195,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             </div>
         </div>
+        
+        <div class="mt-4 text-center">
+            <a href="index.php?action=menu" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-2"></i>Tornar al menú
+            </a>
+        </div>
     </main>
-    <?php require_once __DIR__ . '/includes/footer.php'; ?>
+    <?php require_once 'includes/footer.php'; ?>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>

@@ -1,65 +1,3 @@
-<?php
-session_start();
-require_once __DIR__ . '/config.php';
-require_once __DIR__ . '/classes/Sql.php';
-
-$config = require __DIR__ . '/config.php';
-$sql = new Sql($config);
-
-// Obtenir filtres de la URL o POST
-$filterOrigin = isset($_REQUEST['filter_origin']) ? trim($_REQUEST['filter_origin']) : '';
-$filterDestination = isset($_REQUEST['filter_destination']) ? trim($_REQUEST['filter_destination']) : '';
-$filterDate = isset($_REQUEST['filter_date']) ? trim($_REQUEST['filter_date']) : '';
-$filterSeats = isset($_REQUEST['filter_seats']) ? (int)$_REQUEST['filter_seats'] : 0;
-
-// Construir query dinàmicament
-$query = "SELECT r.id, r.origin, r.destination, r.date_time, r.seats, r.description, u.nom as username 
-         FROM rutes r 
-         JOIN usuaris u ON r.user_email = u.correu 
-         WHERE r.available = 1";
-$params = [];
-
-if (!empty($filterOrigin)) {
-    $query .= " AND r.origin LIKE ?";
-    $params[] = "%$filterOrigin%";
-}
-if (!empty($filterDestination)) {
-    $query .= " AND r.destination LIKE ?";
-    $params[] = "%$filterDestination%";
-}
-if (!empty($filterDate)) {
-    $query .= " AND DATE(r.date_time) >= ?";
-    $params[] = $filterDate;
-}
-if ($filterSeats > 0) {
-    $query .= " AND r.seats >= ?";
-    $params[] = $filterSeats;
-}
-
-$query .= " ORDER BY r.date_time ASC";
-
-// Executar query
-$rutes = empty($params) ? $sql->select($query) : $sql->select($query, $params);
-
-// Si es una crida AJAX, retornar JSON
-if (!empty($_REQUEST['ajax'])) {
-    header('Content-Type: application/json');
-    $result = [];
-    foreach ($rutes as $r) {
-        $result[] = [
-            'id' => $r['id'],
-            'origin' => htmlspecialchars($r['origin']),
-            'destination' => htmlspecialchars($r['destination']),
-            'date_time' => date('d/m/Y H:i', strtotime($r['date_time'])),
-            'seats' => (int)$r['seats'],
-            'username' => htmlspecialchars($r['username']),
-            'description' => htmlspecialchars($r['description'])
-        ];
-    }
-    echo json_encode($result);
-    exit;
-}
-?>
 <!DOCTYPE html>
 <html lang="ca">
 <head>
@@ -72,15 +10,14 @@ if (!empty($_REQUEST['ajax'])) {
     <link rel="stylesheet" href="css/style_filter.css">
 </head>
 <body class="bg-light">
-    <?php require_once __DIR__ . '/includes/header.php'; ?>
+    <?php require_once 'includes/header.php'; ?>
 
     <main class="container py-5">
         <div class="mb-5">
             <h1 class="mb-1">Rutes Disponibles</h1>
-            <p class="text-muted">Encuentra el viaje perfecto para ti</p>
+            <p class="text-muted">Troba el viatge perfecte per a tu</p>
         </div>
 
-        <!-- FILTRES -->
         <div class="card mb-4 filter-card">
             <div class="card-body">
                 <h6 class="mb-3"><i class="bi bi-funnel me-2"></i>Filtrar rutes</h6>
@@ -113,7 +50,6 @@ if (!empty($_REQUEST['ajax'])) {
             </div>
         </div>
 
-        <!-- RESULTATS -->
         <div class="row justify-content-center">
             <div class="col-12 col-lg-8">
                 <div id="results-container">
@@ -156,7 +92,7 @@ if (!empty($_REQUEST['ajax'])) {
                                             </div>
                                         </div>
                                         <div class="col-md-4 text-md-end mt-3 mt-md-0">
-                                            <a href="route_details.php?id=<?= (int)$rute['id'] ?>" class="btn btn-outline-primary">
+                                            <a href="index.php?action=route_details&id=<?= (int)$rute['id'] ?>" class="btn btn-outline-primary">
                                                 <i class="bi bi-eye me-2"></i>Veure detalls
                                             </a>
                                         </div>
@@ -168,7 +104,7 @@ if (!empty($_REQUEST['ajax'])) {
                 </div>
 
                 <div class="text-center mt-5">
-                    <a href="menu.php" class="btn btn-secondary">
+                    <a href="index.php?action=menu" class="btn btn-secondary">
                         <i class="bi bi-arrow-left me-2"></i>Tornar al menú
                     </a>
                 </div>
@@ -176,20 +112,27 @@ if (!empty($_REQUEST['ajax'])) {
         </div>
     </main>
 
-    <?php require_once __DIR__ . '/includes/footer.php'; ?>
+    <?php require_once 'includes/footer.php'; ?>
 
     <script>
-    // Filtrar en temps real amb AJAX (opcional)
+
+        
+    // Filtrar en temps real amb AJAX
     document.getElementById('filter-form').addEventListener('submit', async function(e) {
         e.preventDefault();
         const formData = new FormData(this);
         formData.append('ajax', '1');
         
         try {
-            const res = await fetch(window.location.pathname, {
+            // CAMVI IMPORTANT: Apuntem explícitament a l'acció
+            const res = await fetch('index.php?action=rutes_disponibles', {
                 method: 'POST',
                 body: formData
             });
+            
+            // Verifiquem que la resposta sigui correcta abans de parsejar JSON
+            if (!res.ok) throw new Error('Error a la xarxa');
+
             const data = await res.json();
             
             const container = document.getElementById('results-container');
@@ -200,6 +143,9 @@ if (!empty($_REQUEST['ajax'])) {
             
             let html = '';
             data.forEach(rute => {
+                // Construim l'enllaç MVC dins del JS també
+                const linkDetalls = `index.php?action=route_details&id=${rute.id}`;
+                
                 html += `
                     <div class="card mb-4 shadow-sm route-card">
                         <div class="card-body">
@@ -219,7 +165,7 @@ if (!empty($_REQUEST['ajax'])) {
                                     </div>
                                 </div>
                                 <div class="col-md-4 text-md-end mt-3 mt-md-0">
-                                    <a href="route_details.php?id=${rute.id}" class="btn btn-outline-primary">
+                                    <a href="${linkDetalls}" class="btn btn-outline-primary">
                                         <i class="bi bi-eye me-2"></i>Veure detalls
                                     </a>
                                 </div>
@@ -234,9 +180,9 @@ if (!empty($_REQUEST['ajax'])) {
         }
     });
 
-    // Netejar form
     document.getElementById('filter-form').querySelector('button[type="reset"]').addEventListener('click', function() {
-        setTimeout(() => document.getElementById('filter-form').submit(), 10);
+        // En recarregar, tornem a la ruta MVC
+        setTimeout(() => window.location.href = 'index.php?action=rutes_disponibles', 10);
     });
     </script>
 

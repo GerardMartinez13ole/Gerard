@@ -1,42 +1,3 @@
-<?php
-session_start();
-require_once __DIR__ . '/config.php';
-require_once __DIR__ . '/classes/Sql.php';
-
-$config = require __DIR__ . '/config.php';
-$sql = new Sql($config);
-
-$errors = [];
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $name = trim($_POST['name'] ?? '');
-    $email = trim($_POST['email'] ?? '');
-    $pass = $_POST['password'] ?? '';
-    $pass2 = $_POST['password_confirm'] ?? '';
-
-    if ($name === '' || $email === '' || $pass === '' || $pass2 === '') {
-        $errors[] = 'Rellena todos los campos.';
-    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $errors[] = 'Email no válido.';
-    } elseif ($pass !== $pass2) {
-        $errors[] = 'Las contraseñas no coinciden.';
-    } else {
-        // comprobar si ja existeix
-        $exists = $sql->getUserByEmail($email);
-        if ($exists) {
-            $errors[] = 'Ya existe una cuenta con ese email.';
-        } else {
-            $hash = password_hash($pass, PASSWORD_DEFAULT);
-            $id = $sql->createUser($name, $email, $hash);
-            if ($id) {
-                header('Location: login.php?registered=1');
-                exit;
-            } else {
-                $errors[] = 'Error al crear la cuenta.';
-            }
-        }
-    }
-}
-?>
 <!doctype html>
 <html lang="es">
 <head>
@@ -66,15 +27,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             <?php endif; ?>
 
-            <form method="post" action="register.php" class="auth-form">
+            <form method="post" action="index.php?action=register" class="auth-form">
                 <div class="mb-3">
                     <label class="form-label small">Nom complet</label>
-                    <input type="text" name="name" required class="form-control form-control-lg" value="<?= htmlspecialchars($_POST['name'] ?? '') ?>">
+                    <input type="text" name="name" required class="form-control form-control-lg" value="<?= htmlspecialchars($name ?? '') ?>">
                 </div>
 
                 <div class="mb-3">
                     <label class="form-label small">Email</label>
-                    <input type="email" name="email" required class="form-control form-control-lg" value="<?= htmlspecialchars($_POST['email'] ?? '') ?>">
+                    <input type="email" name="email" required class="form-control form-control-lg" value="<?= htmlspecialchars($email ?? '') ?>">
                 </div>
 
                 <div class="mb-3">
@@ -88,13 +49,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
 
                 <div class="d-flex justify-content-between align-items-center mb-0">
-                    <a href="login.php" class="small">Ja tinc compte</a>
+                    <a href="index.php?action=login" class="small">Ja tinc compte</a>
                     <button class="btn btn-primary btn-lg" type="submit"><i class="bi bi-person-plus me-2"></i>Crear cuenta</button>
                 </div>
             </form>
         </div>
     </main>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
