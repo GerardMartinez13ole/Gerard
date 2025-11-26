@@ -1,22 +1,32 @@
 <?php
 // classes/Sql.php
-// Clase simple para encapsular operaciones con la base de datos usando PDO
+// Classe simple per encapsular operacions amb la base de dades utilitzant PDO.
+// Comentaris en català per facilitar la comprensió a altres desenvolupadors.
+// Principals responsabilitats:
+// - Obrir la connexió PDO a la base de dades (configurable via $config).
+// - Proporcionar mètodes helpers per obtenir/usuaris i executar consultes comunes.
 
 class Sql
 {
     private $pdo;
 
+    // Constructor
+    // Paràmetres:
+    // - array $config: pot contenir 'db_host', 'db_name', 'db_user', 'db_pass', 'db_charset'
+    // Comportament:
+    // - Valida que hi hagi un nom de base de dades (db_name) i estableix la connexió PDO.
+    // - Si hi ha un error de connexió llença RuntimeException amb missatge amigable.
     public function __construct(array $config)
     {
-        $host = $config['db_host'] ?? '127.0.0.1';
+        $host = $config['db_host'] ?? 'mysql-8001.dinaserver.com';
         $db   = $config['db_name'] ?? 'carsharing';
-        $user = $config['db_user'] ?? 'root';
-        $pass = $config['db_pass'] ?? '';
+        $user = $config['db_user'] ?? 'gerard';
+        $pass = $config['db_pass'] ?? 'aFvwd640/w(3';
         $charset = $config['db_charset'] ?? 'utf8mb4';
 
-        // Validación clara si falta el nombre de la base de datos
+        // Validació clara si falta el nom de la base de dades
         if (empty($db)) {
-            throw new RuntimeException("Falta la configuración de la base de datos: añade 'db_name' en config.php (ej. 'db_name' => 'mi_base_datos').");
+            throw new RuntimeException("Falta la configuració de la base de dades: añade 'db_name' en config.php (ej. 'db_name' => 'mi_base_datos').");
         }
 
         $dsn = "mysql:host={$host};dbname={$db};charset={$charset}";
@@ -29,12 +39,17 @@ class Sql
         try {
             $this->pdo = new PDO($dsn, $user, $pass, $options);
         } catch (PDOException $e) {
-            // Mensaje amigable para depuración
+            // Mensaje amigable per a la depuració
             throw new RuntimeException("Error al conectar con la base de datos: " . $e->getMessage());
         }
     }
 
-    // Devuelve usuario por email o null
+    // getUserByEmail
+    // Retorna:
+    // - array associatiu amb les columnes (nom, correu, contrasenya) si existeix l'usuari
+    // - null si no existeix
+    // Ús:
+    // - Útil per obtenir les dades d'un usuari abans de verificar la contrasenya.
     public function getUserByEmail(string $email)
     {
         $stmt = $this->pdo->prepare('SELECT  nom, correu, contrasenya FROM usuaris WHERE correu = :email LIMIT 1');
@@ -43,7 +58,14 @@ class Sql
         return $row ?: null;
     }
 
-    // Crea un usuario y devuelve su id (int) o false
+    // createUser
+    // Paràmetres:
+    // - string $name, string $email, string $passwordHash (ja hashed)
+    // Retorna:
+    // - int id del nou usuari si la inserció té èxit
+    // - false en cas contrari
+    // Nota:
+    // - No fa hashing aquí; espera que la contrasenya ja estigui hashejada abans de cridar-ho.
     public function createUser(string $name, string $email, string $passwordHash)
     {
         $stmt = $this->pdo->prepare('INSERT INTO usuaris (nom, correu, contrasenya) VALUES (:name, :email, :password)');
@@ -58,7 +80,14 @@ class Sql
         return false;
     }
 
-    // Verifica credenciales. Devuelve usuario array o false.
+    // verifyUser
+    // Paràmetres:
+    // - string $email, string $password (plaintext)
+    // Comportament:
+    // - Busca l'usuari per correu i comprova la contrasenya amb password_verify.
+    // Retorna:
+    // - array amb les dades de l'usuari (sense la contrasenya) si la verificació és correcta
+    // - false si l'usuari no existeix o la contrasenya és incorrecta
     public function verifyUser(string $email, string $password)
     {
         $user = $this->getUserByEmail($email);
@@ -73,7 +102,13 @@ class Sql
     }
 
     /**
-     * Ejecuta una SELECT y devuelve todas las filas.
+     * select
+     * Executa una SELECT i retorna totes les files.
+     * Paràmetres:
+     * - string $sql: consulta amb placeholders
+     * - array $params: valors per als placeholders
+     * Retorna:
+     * - array de files (array associatiu)
      */
     public function select(string $sql, array $params = []): array {
         $stmt = $this->pdo->prepare($sql);
@@ -82,7 +117,10 @@ class Sql
     }
 
     /**
-     * Ejecuta una INSERT y devuelve el lastInsertId.
+     * insert
+     * Executa una INSERT i retorna el lastInsertId.
+     * Ús:
+     * - Permet reusar per a insercions personalitzades.
      */
     public function insert(string $sql, array $params = []) {
         $stmt = $this->pdo->prepare($sql);
@@ -91,7 +129,8 @@ class Sql
     }
 
     /**
-     * Ejecuta una consulta (UPDATE/DELETE u otra) y devuelve true/false.
+     * execute
+     * Executa una consulta genèrica (UPDATE/DELETE o altra) i retorna boolean d'èxit.
      */
     public function execute(string $sql, array $params = []): bool {
         $stmt = $this->pdo->prepare($sql);
@@ -99,7 +138,8 @@ class Sql
     }
 
     /**
-     * Ejecuta una SELECT y devuelve la primera fila.
+     * fetch
+     * Executa una SELECT i retorna la primera fila (o false si no hi ha res).
      */
     public function fetch(string $sql, array $params = []) {
         $stmt = $this->pdo->prepare($sql);

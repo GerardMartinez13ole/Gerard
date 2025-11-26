@@ -1,11 +1,8 @@
 <?php
-/**
- * Configuración de la base de datos.
- * Rellena los valores con tus credenciales locales.
- */
+
 return [
-    'host' => '127.0.0.1',
+    'host' => 'mysql-8001.dinaserver.com',
     'dbname' => 'carsharing',
-    'user' => 'root',
-    'pass' => '',
+    'user' => 'gerard',
+    'pass' => 'aFvwd640/w(3',
 ];

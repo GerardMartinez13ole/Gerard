@@ -1,16 +1,21 @@
+<!-- views/afegir_ruta.php -->
+<!-- Aquesta vista mostra el formulari per crear una nova ruta. -->
+<!-- Rep del controlador les variables $errors, $origin, $destination, etc., per mostrar missatges i repoblar el formulari. -->
 <!DOCTYPE html>
 <html lang="ca">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Afegir Ruta - CarSharing</title>
+    <!-- Enllaços a llibreries CSS (Bootstrap) i fulls d'estil personalitzats. -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
     <link rel="stylesheet" href="css/style_global.css">
     <link rel="stylesheet" href="css/style_form_professional.css">
 </head>
 <body class="bg-light">
-    <?php require_once 'includes/header.php'; ?>
+    <?php // Incloem la capçalera reutilitzable que conté la barra de navegació.
+    require_once 'includes/header.php'; ?>
 
     <main class="container py-5">
         <div class="mb-5">
@@ -30,23 +35,28 @@
                     </div>
 
                     <div class="form-content">
-                        <?php if (!empty($errors)): ?>
+                        <?php // Bloc PHP per mostrar errors de validació.
+                        // La variable $errors ve del controlador 'controllers/afegir_ruta.php'.
+                        if (!empty($errors)): ?>
                             <div class="form-alert alert alert-danger">
                                 <strong><i class="bi bi-exclamation-circle me-2"></i>Error:</strong>
                                 <ul class="mb-0">
                                     <?php foreach ($errors as $error): ?>
-                                        <li><?= htmlspecialchars($error) ?></li>
+                                        <li><?= htmlspecialchars($error) // Usem htmlspecialchars per seguretat (prevenir XSS). ?></li>
                                     <?php endforeach; ?>
                                 </ul>
                             </div>
                         <?php endif; ?>
 
+                        <!-- El formulari envia les dades via POST al controlador 'afegir_ruta'. -->
                         <form method="post" action="index.php?action=afegir_ruta" novalidate>
                             <div class="form-group">
                                 <label class="form-label">
                                     <i class="bi bi-geo-alt-fill form-icon-small"></i>
                                     Origen
                                 </label>
+                                <!-- El valor del camp es manté si hi ha un error de validació, millorant l'experiència d'usuari. -->
+                                <!-- La variable $origin ve del controlador. -->
                                 <input type="text" name="origin" class="form-control" 
                                        placeholder="Ex: Lleida" required
                                        value="<?= htmlspecialchars($origin ?? '') ?>">
@@ -78,6 +88,7 @@
                                 <div class="row form-row">
                                     <div class="col-md-6">
                                         <input type="date" name="date" class="form-control" required
+                                               min="<?= date('Y-m-d') // L'atribut 'min' evita que es puguin seleccionar dates passades. ?>"
                                                min="<?= date('Y-m-d') ?>"
                                                value="<?= htmlspecialchars($date ?? '') ?>">
                                         <div class="form-hint">
@@ -153,7 +164,8 @@
         </div>
     </main>
 
-    <?php require_once 'includes/footer.php'; ?>
+    <?php // Incloem el peu de pàgina reutilitzable.
+    require_once 'includes/footer.php'; ?>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
